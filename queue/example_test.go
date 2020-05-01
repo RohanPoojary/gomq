@@ -47,7 +47,6 @@ func Example_Example2() {
 		queue.Close(-1)
 	}()
 
-
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {

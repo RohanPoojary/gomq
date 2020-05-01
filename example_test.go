@@ -13,11 +13,11 @@ func Example_basic() {
 	usersPoller := broker.Subscribe(ExactMatcher("users"))
 
 	type User struct {
-		ID int
+		ID   int
 		Name string
 	}
 
-	go func () {
+	go func() {
 		// Publisher Routine.
 		for i := 1; i < 10; i++ {
 			broker.Publish("users", User{ID: i})
@@ -47,18 +47,18 @@ func Example_advanced() {
 	usersPoller := broker.Subscribe(regexp.MustCompile(`users\..*`))
 
 	type User struct {
-		ID int
+		ID      int
 		Country string
 	}
 
-	go func () {
+	go func() {
 		// Publishing User Data from India.
 		for i := 1; i < 10; i++ {
 			broker.Publish("users.india", User{ID: i, Country: "India"})
 		}
 	}()
 
-	go func () {
+	go func() {
 		// Publishing User Data from USA.
 		for i := 1; i < 10; i++ {
 			broker.Publish("users.usa", User{ID: i, Country: "USA"})
@@ -78,7 +78,7 @@ func Example_advanced() {
 
 	for i := 1; i <= 5; i++ {
 		val, ok := logPoller.Poll()
-		fmt.Println(time.Now(), val, ok )
+		fmt.Println(time.Now(), val, ok)
 	}
 
 }
