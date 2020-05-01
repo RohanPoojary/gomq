@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/RohanPoojary/gomq.svg?branch=master)](https://travis-ci.org/RohanPoojary/gomq)
 [![Coverage Status](https://coveralls.io/repos/github/RohanPoojary/gomq/badge.svg?branch=master)](https://coveralls.io/github/RohanPoojary/gomq?branch=master)
 [![Go Report Card](https://goreportcard.com/badge/github.com/RohanPoojary/gomq)](https://goreportcard.com/report/github.com/RohanPoojary/gomq)
+[![GoDoc](https://godoc.org/github.com/RohanPoojary/gomq?status.svg)](https://godoc.org/github.com/RohanPoojary/gomq)
 
 An In-memory message broker in Golang.
 

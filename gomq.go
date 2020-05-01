@@ -46,6 +46,7 @@ type broker struct {
 	sync.RWMutex
 }
 
+// NewBroker creates a new broker for message exchange.
 func NewBroker() Broker {
 	return &broker{
 		queues:   make([]queue.Queue, 0),
