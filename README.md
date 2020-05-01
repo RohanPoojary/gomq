@@ -1,3 +1,9 @@
+# GoMQ
+[![Build Status](https://travis-ci.org/RohanPoojary/gomq.svg?branch=master)](https://travis-ci.org/RohanPoojary/gomq)
+[![Coverage Status](https://coveralls.io/repos/github/RohanPoojary/gomq/badge.svg?branch=master)](https://coveralls.io/github/RohanPoojary/gomq?branch=master)
+
+An In-memory message broker in Golang.
+
 # Introduction
 Gomq is an in-memory message broker. The behaviour is similar to rabbitmq. 
 Hence provides subscription to topics based on pattern match.
