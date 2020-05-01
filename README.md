@@ -33,7 +33,7 @@ Exact Match
     
     broker := gomq.NewBroker()
 
-    # Subscribes to "users" topic.
+    // Subscribes to "users" topic.
     usersPoller := broker.Subscribe(gomq.ExactMatcher("users"))
 
 ```
@@ -43,7 +43,7 @@ Regex Match
     
     broker := gomq.NewBroker()
 
-    # Subscribes to "users.*" topic.
+    // Subscribes to "users.*" topic.
     usersPoller := broker.Subscribe(regexp.MustCompile(`users\.\w*`))
 
 ```
