@@ -51,7 +51,7 @@ Regex Match
     
     broker := gomq.NewBroker()
 
-    // Subscribes to "users.*" topic.
+    // Subscribes to any topic that matches "users.*" .
     usersPoller := broker.Subscribe(regexp.MustCompile(`users\.\w*`))
 
 ```

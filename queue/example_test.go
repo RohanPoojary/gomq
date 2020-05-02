@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-func Example_Example1() {
+func Example_example1() {
 
 	// The queue has no size limit. Hence, data can be pushed
 	// even without any poller.
@@ -29,7 +29,7 @@ func Example_Example1() {
 	// 5
 }
 
-func Example_Example2() {
+func Example_example2() {
 
 	queue := NewQueue()
 	wg := sync.WaitGroup{}
@@ -60,7 +60,7 @@ func Example_Example2() {
 	wg.Wait()
 }
 
-func ExamplePoll() {
+func ExampleQueue_Poll() {
 	queue := NewQueue()
 
 	for i := 1; i <= 3; i++ {
