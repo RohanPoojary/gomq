@@ -60,7 +60,7 @@ func Example_example2() {
 	wg.Wait()
 }
 
-func ExampleQueue_Poll() {
+func ExampleQueue() {
 	queue := NewQueue()
 
 	for i := 1; i <= 3; i++ {

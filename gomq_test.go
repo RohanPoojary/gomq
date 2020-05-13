@@ -110,32 +110,6 @@ func TestBrokerPollAfterClose(t *testing.T) {
 	}
 }
 
-func TestBrokerPublishAfterClose(t *testing.T) {
-	broker := NewBroker()
-	sub := broker.Subscribe(ExactMatcher("all"))
-	broker.Publish("all", "record-1")
-
-	{
-		val, ok := sub.Poll()
-		if val != "record-1" {
-			t.Errorf("Expeted Value: record-1, Obtained: %v\n", val)
-		}
-		if !ok {
-			t.Error("Poll should be True")
-		}
-	}
-
-	broker.Close(-1)
-	broker.Publish("all", "record-2")
-	{
-		_, ok := sub.Poll()
-		if ok {
-			t.Error("Poll should be False")
-		}
-	}
-
-}
-
 func TestBrokerDataIntegrityCloseBroker(t *testing.T) {
 
 	b := NewBroker()

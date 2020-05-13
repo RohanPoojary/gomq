@@ -2,7 +2,9 @@ package gomq
 
 import (
 	"fmt"
+	"math/rand"
 	"regexp"
+	"sync"
 	"time"
 )
 
@@ -81,6 +83,59 @@ func Example_advanced() {
 		fmt.Println(time.Now(), val, ok)
 	}
 
+}
+
+func Example_fanOut() {
+	broker := NewBroker()
+	sub := broker.Subscribe(ExactMatcher("records"))
+	workerCount := 20
+
+	go func() {
+		for i := 0; i < 1000; i++ {
+			broker.Publish("records", rand.Intn(1000))
+		}
+		broker.Close(-1)
+	}()
+
+	wg := sync.WaitGroup{}
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for rec, ok := sub.Poll(); ok; rec, ok = sub.Poll() {
+				time.Sleep(time.Duration(rec.(int)) * time.Nanosecond)
+			}
+		}()
+	}
+
+	wg.Wait()
+}
+
+func Example_fanIn() {
+	broker := NewBroker()
+	sub := broker.Subscribe(ExactMatcher("records"))
+
+	workerCount := 20
+
+	go func() {
+		wg := sync.WaitGroup{}
+		for i := 0; i < workerCount; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := 0; i < 1000; i++ {
+					broker.Publish("records", rand.Intn(1000))
+				}
+			}()
+		}
+
+		wg.Wait()
+		broker.Close(-1)
+	}()
+
+	for rec, ok := sub.Poll(); ok; rec, ok = sub.Poll() {
+		time.Sleep(time.Duration(rec.(int)) * time.Nanosecond)
+	}
 }
 
 func ExampleBroker_Subscribe_exact() {
