@@ -22,7 +22,7 @@ type Queue interface {
 	// Close closes the queue for any write operations.
 	//
 	// For negative timeOut, resources will be closed once all the data are polled,
-	// else the resources will be forcefully collected after timeOut
+	// else the resources will be forcefully collected after timeOut.
 	Close(timeOut time.Duration)
 }
 
@@ -69,6 +69,7 @@ func (q *queue) manage() {
 					queue = append(queue, v)
 				}
 			case q.out <- queue[0]:
+				queue[0] = nil
 				queue = queue[1:]
 			}
 		}

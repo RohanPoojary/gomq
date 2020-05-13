@@ -40,17 +40,20 @@ type Broker interface {
 	Close(timeOut time.Duration)
 }
 
+type queueMatcher struct {
+	queue queue.Queue
+	matcher Matcher
+}
+
 type broker struct {
-	queues   []queue.Queue
-	patterns []Matcher
+	queueMatchers []queueMatcher
 	sync.RWMutex
 }
 
 // NewBroker creates a new broker for message exchange.
 func NewBroker() Broker {
 	return &broker{
-		queues:   make([]queue.Queue, 0),
-		patterns: make([]Matcher, 0),
+		queueMatchers: []queueMatcher{},
 	}
 }
 
@@ -59,9 +62,9 @@ func (b *broker) Publish(topic string, data interface{}) {
 	defer b.RUnlock()
 
 	// TODO: Cache the below information.
-	for i, q := range b.queues {
-		if b.patterns[i].MatchString(topic) {
-			q.Push(data)
+	for _, q := range b.queueMatchers {
+		if q.matcher.MatchString(topic) {
+			q.queue.Push(data)
 		}
 	}
 }
@@ -72,8 +75,7 @@ func (b *broker) Subscribe(matcher Matcher) Poller {
 	defer b.Unlock()
 
 	que := queue.NewQueue()
-	b.queues = append(b.queues, que)
-	b.patterns = append(b.patterns, matcher)
+	b.queueMatchers = append(b.queueMatchers, queueMatcher{queue:que, matcher: matcher})
 
 	return que
 }
@@ -81,11 +83,9 @@ func (b *broker) Subscribe(matcher Matcher) Poller {
 func (b *broker) Close(timeOut time.Duration) {
 	b.Lock()
 	defer b.Unlock()
-	for i := 0; i < len(b.queues); i++ {
-		q := b.queues[i]
-		q.Close(timeOut)
+	for _, qm := range b.queueMatchers {
+		qm.queue.Close(timeOut)
 	}
 
-	b.queues = []queue.Queue{}
-	b.patterns = []Matcher{}
+	b.queueMatchers = []queueMatcher{}
 }

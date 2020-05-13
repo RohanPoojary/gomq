@@ -1,2 +1,5 @@
 .coveralls.yml
 *.out
+*.prof
+*.test
+*.ignore

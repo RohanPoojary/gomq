@@ -13,6 +13,11 @@ Hence provides subscription to topics based on pattern match.
 Gomq being a message broker it is thread safe and is Interface based. 
 Thereby allowing easy testing.
 
+# Installation
+``` 
+    go get github.com/RohanPoojary/gomq
+```
+
 # TODO
 - [ ] Optimise Publish.
 - [ ] Benchmarking of different functionalities.
@@ -31,6 +36,7 @@ func main() {
         ...
 }
 
+
 ```
 
 ### Subscribing to a Topic
@@ -43,6 +49,7 @@ Exact Match
 
     // Subscribes to "users" topic.
     usersPoller := broker.Subscribe(gomq.ExactMatcher("users"))
+
 
 ```
 
@@ -63,6 +70,7 @@ Regex Match
     broker := gomq.NewBroker()
 
     broker.Publish("users.id", 100)
+
 
 ```
 
@@ -88,4 +96,34 @@ Regex Match
         }
     }()
 
+
 ```
+
+# Benchmark
+The benchmark is done on Publish (publishes the message) & Poll (polls the message from queue).
+In all benchmarks both publisher & subscriber are present at any point of time. 
+
+Point to note is that the broker is optimized around Poll, Hence publish slows with more number of
+Consumers, while the Poll doesn't slow at the same rate.
+
+```shell script
+>  go test -cpu 4 -bench .
+goos: darwin
+goarch: amd64
+pkg: github.com/RohanPoojary/gomq
+BenchmarkPublish/Consumers=1-4         	                     1000000	      1178 ns/op
+BenchmarkPublish/Consumers=10-4        	                      300000	      4504 ns/op
+BenchmarkPublish/Consumers=30-4        	                      200000	     11523 ns/op
+BenchmarkPublish/Consumers=50-4        	                      100000	     19384 ns/op
+BenchmarkConsume/Publisher=1-4         	                     1000000	      1599 ns/op
+BenchmarkConsume/Publisher=10-4        	                     1000000	      1788 ns/op
+BenchmarkConsume/Publisher=30-4        	                     1000000	      2182 ns/op
+BenchmarkConsume/Publisher=50-4        	                     1000000	      2330 ns/op
+BenchmarkMultiConsume/Publisher=50/Consumer=10-4         	 1000000	      1134 ns/op
+BenchmarkMultiConsume/Publisher=50/Consumer=30-4         	  500000	      3568 ns/op
+BenchmarkMultiConsume/Publisher=50/Consumer=50-4         	  500000	      4416 ns/op
+PASS
+```
+
+# Contribution
+Feel free to contribute or request any feature. Reporting issues can also help.
