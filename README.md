@@ -11,16 +11,15 @@ Gomq is an in-memory message broker. The behaviour is similar to rabbitmq.
 Hence provides subscription to topics based on pattern match.
 
 Gomq being a message broker it is thread safe and is Interface based. 
-Thereby allowing easy testing.
+Thereby allowing easy testing. It supports Go 1.19+.
 
 # Installation
-``` 
-    go get github.com/RohanPoojary/gomq
+```shell script
+go get github.com/RohanPoojary/gomq
 ```
 
 # TODO
 - [ ] Optimise Publish.
-- [ ] Benchmarking of different functionalities.
 
 # Topics
 
