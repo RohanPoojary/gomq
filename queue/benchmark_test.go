@@ -76,7 +76,7 @@ func BenchmarkPollWithAsyncPublish(b *testing.B) {
 
 	closeCh := make(chan bool)
 	go func() {
-		for  {
+		for {
 			select {
 			case <-closeCh:
 				return
@@ -94,5 +94,5 @@ func BenchmarkPollWithAsyncPublish(b *testing.B) {
 		}
 	})
 
-	closeCh<-true
+	closeCh <- true
 }

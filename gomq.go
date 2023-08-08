@@ -41,7 +41,7 @@ type Broker interface {
 }
 
 type queueMatcher struct {
-	queue queue.Queue
+	queue   queue.Queue
 	matcher Matcher
 }
 
@@ -75,7 +75,7 @@ func (b *broker) Subscribe(matcher Matcher) Poller {
 	defer b.Unlock()
 
 	que := queue.NewQueue()
-	b.queueMatchers = append(b.queueMatchers, queueMatcher{queue:que, matcher: matcher})
+	b.queueMatchers = append(b.queueMatchers, queueMatcher{queue: que, matcher: matcher})
 
 	return que
 }

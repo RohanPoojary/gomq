@@ -29,11 +29,10 @@ func benchmarkPublishNConsumer(b *testing.B, n int) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			id := strconv.Itoa(100)
-			broker.Publish("test" + id, rand.Intn(1000))
+			broker.Publish("test"+id, rand.Intn(1000))
 		}
 	})
 }
-
 
 func BenchmarkPublish(b *testing.B) {
 	// BenchmarkPublish/Consumers=1-4         	 1000000	      1178 ns/op
@@ -68,7 +67,7 @@ func benchmarkConsumeNPublisher(b *testing.B, n int) {
 				case <-stop:
 					return
 				default:
-					broker.Publish("test:" + strconv.Itoa(i), rand.Intn(1000))
+					broker.Publish("test:"+strconv.Itoa(i), rand.Intn(1000))
 				}
 			}
 		}()
@@ -82,7 +81,7 @@ func benchmarkConsumeNPublisher(b *testing.B, n int) {
 		}
 	})
 
-	stop <-true
+	stop <- true
 	close(stop)
 }
 
@@ -105,7 +104,7 @@ func benchmarkMConsumerNPublisher(b *testing.B, m, n int) {
 				case <-stop:
 					return
 				default:
-					broker.Publish("test:" + strconv.Itoa(i), rand.Intn(1000))
+					broker.Publish("test:"+strconv.Itoa(i), rand.Intn(1000))
 				}
 			}
 		}()
@@ -120,10 +119,9 @@ func benchmarkMConsumerNPublisher(b *testing.B, m, n int) {
 		}
 	})
 
-	stop <-true
+	stop <- true
 	close(stop)
 }
-
 
 func BenchmarkConsume(b *testing.B) {
 	// BenchmarkConsume/Publisher=1-4         	 1000000	      1599 ns/op
@@ -140,7 +138,6 @@ func BenchmarkConsume(b *testing.B) {
 		})
 	}
 }
-
 
 func BenchmarkMultiConsume(b *testing.B) {
 	// BenchmarkMultiConsume/Publisher=50/Consumer=10-4         	 1000000	      1134 ns/op
