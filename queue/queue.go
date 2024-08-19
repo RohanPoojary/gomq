@@ -55,6 +55,7 @@ func (q *queue) manage() {
 			case <-q.close:
 				return
 			case v, ok := <-q.in:
+				// If channel gets closed, then return
 				if !ok {
 					return
 				}
@@ -88,18 +89,15 @@ func (q *queue) Poll() (interface{}, bool) {
 func (q *queue) forceClose() {
 	q.close <- true
 	close(q.close)
+	<-q.out
 }
 
 func (q *queue) Close(timeout time.Duration) {
 	q.once.Do(func() {
 		close(q.in)
 		if timeout >= 0 {
-			go func() {
-				select {
-				case <-time.After(timeout):
-					q.forceClose()
-				}
-			}()
+			time.Sleep(timeout)
+			q.forceClose()
 		}
 	})
 }

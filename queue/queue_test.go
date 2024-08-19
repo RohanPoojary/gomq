@@ -110,3 +110,72 @@ func TestSafeRoutineClose(t *testing.T) {
 		t.Errorf("Non Closed Routines. Start: %d, Now: %d", expected, current)
 	}
 }
+
+func TestRoutineClose(t *testing.T) {
+
+	expected := runtime.NumGoroutine()
+	queue := NewQueue()
+
+	// Store few elements into the queue
+	for i := 0; i < 100; i++ {
+		queue.Push(i)
+	}
+
+	workerExited := false
+	go func() {
+		for {
+			_, ok := queue.Poll()
+			if !ok {
+				break
+			}
+		}
+
+		workerExited = true
+	}()
+
+	queue.Close(100 * time.Millisecond)
+
+	if current := runtime.NumGoroutine(); current != expected {
+		t.Errorf("Non Closed Routines. Start: %d, Now: %d", expected, current)
+	}
+
+	if !workerExited {
+		t.Errorf("Worker did not exit")
+	}
+}
+
+func TestRoutineForceClose(t *testing.T) {
+
+	queue := NewQueue()
+
+	// Store few elements into the queue
+	for i := 0; i < 100; i++ {
+		queue.Push(i)
+	}
+
+	workerExited := false
+	go func() {
+		for {
+			_, ok := queue.Poll()
+
+			time.Sleep(time.Second) // Induce high latency
+			if !ok {
+				break
+			}
+		}
+
+		workerExited = true
+	}()
+
+	start := time.Now()
+	queue.Close(100 * time.Millisecond)
+
+	if took := time.Since(start); took < 100*time.Millisecond {
+		t.Errorf("Worker should take atleast 100ms to close, took: %v", took)
+	}
+
+	if workerExited {
+		t.Errorf("Worker was not closed forcefully")
+	}
+
+}
