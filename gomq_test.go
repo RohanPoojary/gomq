@@ -3,8 +3,89 @@ package gomq
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
+
+func TestBrokerFanoutPattern(t *testing.T) {
+	broker := NewBroker()
+	defer broker.Close(0)
+
+	subscriberCount := 10
+	topicName := "all-events"
+	valueToAssert := int32(12345)
+
+	wg := sync.WaitGroup{}
+	valueReceiveCount := int32(0)
+	for i := 0; i < subscriberCount; i++ {
+		wg.Add(1)
+
+		// Subscribing before spawning the go routine to ensure all subscribed routines have been added to wait group.
+		sub := broker.Subscribe(ExactMatcher(topicName))
+
+		go func() {
+			defer wg.Done()
+			v, _ := sub.Poll()
+			if v.(int32) != valueToAssert {
+				t.Errorf("Invalid Value: Expected: %d Obtained: %v", valueToAssert, v)
+			} else {
+				atomic.AddInt32(&valueReceiveCount, 1)
+			}
+		}()
+	}
+
+	count := broker.Publish(topicName, valueToAssert)
+	wg.Wait()
+
+	if count != subscriberCount {
+		t.Errorf("Missed delivery to few subscribers: Expected: %d Obtained: %v", count, subscriberCount)
+	}
+
+	if atomic.LoadInt32(&valueReceiveCount) != int32(subscriberCount) {
+		t.Errorf("Invalid Subscriber's Receive Count: Expected: %d Obtained: %v", subscriberCount, valueReceiveCount)
+	}
+
+}
+
+func TestBrokerFanoutPatternForAsyncBroker(t *testing.T) {
+	broker := NewAsyncBroker()
+	defer broker.Close(0)
+
+	subscriberCount := 10
+	topicName := "all-events"
+	valueToAssert := int32(12345)
+
+	wg := sync.WaitGroup{}
+	valueReceiveCount := int32(0)
+	for i := 0; i < subscriberCount; i++ {
+		wg.Add(1)
+
+		// Subscribing before spawning the go routine to ensure all subscribed routines have been added to wait group.
+		sub := broker.Subscribe(ExactMatcher(topicName))
+
+		go func() {
+			defer wg.Done()
+			v, _ := sub.Poll()
+			if v.(int32) != valueToAssert {
+				t.Errorf("Invalid Value: Expected: %d Obtained: %v", valueToAssert, v)
+			} else {
+				atomic.AddInt32(&valueReceiveCount, 1)
+			}
+		}()
+	}
+
+	count := broker.Publish(topicName, valueToAssert)
+	wg.Wait()
+
+	if count != subscriberCount {
+		t.Errorf("Missed delivery to few subscribers: Expected: %d Obtained: %v", count, subscriberCount)
+	}
+
+	if atomic.LoadInt32(&valueReceiveCount) != int32(subscriberCount) {
+		t.Errorf("Invalid Subscriber's Receive Count: Expected: %d Obtained: %v", subscriberCount, valueReceiveCount)
+	}
+
+}
 
 func TestBrokerDataIntegritySingleRoutine(t *testing.T) {
 	broker := NewBroker()
