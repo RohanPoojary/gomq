@@ -10,10 +10,10 @@ An In-memory message broker in Golang.
 Gomq is an in-memory message broker. The behaviour is similar to rabbitmq. 
 Hence provides subscription to topics based on pattern match.
 
-Gomq being a message broker it is thread safe and is Interface based. 
-Thereby allowing easy testing.
+Gomq being a message broker is thread safe and underlyingly uses custom implementation of unbounded queue.
+Hence no blocking should be observed while writing.
 
-Currently supports Go 1.15+.
+Supports Go 1.15+.
 
 # Installation
 ```shell script
@@ -70,8 +70,8 @@ Regex Match
     
     broker := gomq.NewBroker()
 
-    broker.Publish("users.id", 100)
-
+    count := broker.Publish("users.id", 100)
+    // `count` contains the number of subscribers to whom the data has been published
 
 ```
 
