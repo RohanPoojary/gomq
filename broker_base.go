@@ -31,9 +31,24 @@ func (b *brokerBase) Subscribe(matcher Matcher) Poller {
 func (b *brokerBase) Close(timeOut time.Duration) {
 	b.Lock()
 	defer b.Unlock()
+
+	b.unsafeClose(timeOut)
+}
+
+func (b *brokerBase) unsafeClose(timeOut time.Duration) {
+
+	wg := sync.WaitGroup{}
+
 	for _, qm := range b.queueMatchers {
-		qm.queue.Close(timeOut)
+		qm := qm
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			qm.queue.Close(timeOut)
+		}()
 	}
+
+	wg.Wait() // Wait until all subscribers are closed.
 
 	b.queueMatchers = []queueMatcher{}
 }

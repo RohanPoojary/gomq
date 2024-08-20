@@ -135,12 +135,9 @@ func (b *asyncBroker) publish(topic string, data interface{}) int {
 
 func (b *asyncBroker) Close(timeOut time.Duration) {
 
-	// Close base first, thereby closing consumers & resetting queue matchers.
-	b.brokerBase.Close(timeOut)
-
-	// Separate the Close call for queue and brokerBase
 	b.Lock()
 	defer b.Unlock()
 
 	b.queue.Close(timeOut)
+	b.brokerBase.unsafeClose(timeOut)
 }

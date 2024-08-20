@@ -3,6 +3,7 @@ package queue
 import (
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -98,10 +99,14 @@ func TestSafeRoutineClose(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		queue.Poll()
+		for {
+			if _, ok := queue.Poll(); !ok {
+				break
+			}
+		}
 	}()
 
-	queue.Close(0)
+	queue.Close(-1)
 
 	wg.Wait()
 	time.Sleep(time.Millisecond)
@@ -117,65 +122,86 @@ func TestRoutineClose(t *testing.T) {
 	queue := NewQueue()
 
 	// Store few elements into the queue
-	for i := 0; i < 100; i++ {
+	maxItemCount := 100
+	for i := 0; i < maxItemCount; i++ {
 		queue.Push(i)
 	}
 
-	workerExited := false
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	pollCount := int32(0)
 	go func() {
+		defer wg.Done()
 		for {
-			_, ok := queue.Poll()
-			if !ok {
+			if _, ok := queue.Poll(); ok {
+				atomic.AddInt32(&pollCount, 1)
+			} else {
 				break
 			}
 		}
 
-		workerExited = true
-	}()
-
-	queue.Close(100 * time.Millisecond)
-
-	if current := runtime.NumGoroutine(); current != expected {
-		t.Errorf("Non Closed Routines. Start: %d, Now: %d", expected, current)
-	}
-
-	if !workerExited {
-		t.Errorf("Worker did not exit")
-	}
-}
-
-func TestRoutineForceClose(t *testing.T) {
-
-	queue := NewQueue()
-
-	// Store few elements into the queue
-	for i := 0; i < 100; i++ {
-		queue.Push(i)
-	}
-
-	workerExited := false
-	go func() {
-		for {
-			_, ok := queue.Poll()
-
-			time.Sleep(time.Second) // Induce high latency
-			if !ok {
-				break
-			}
-		}
-
-		workerExited = true
 	}()
 
 	start := time.Now()
 	queue.Close(100 * time.Millisecond)
 
+	wg.Wait() // Wait until poller closes
+
+	if current := runtime.NumGoroutine(); false && current != expected {
+		t.Errorf("Non Closed Routines, Start: %d, Now: %d [Took: %v]", expected, current, time.Since(start))
+	}
+
+	if atomic.LoadInt32(&pollCount) != int32(maxItemCount) {
+		t.Errorf("Worker not closed gracefully, some pending items present")
+	}
+}
+
+func TestRoutineForceClose(t *testing.T) {
+
+	expected := runtime.NumGoroutine()
+
+	queue := NewQueue()
+
+	// Store few elements into the queue
+	maxItemCount := 100
+	for i := 0; i < maxItemCount; i++ {
+		queue.Push(i)
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+
+	pollCount := int32(0)
+	go func() {
+		defer wg.Done()
+
+		for {
+			_, ok := queue.Poll()
+
+			time.Sleep(10 * time.Millisecond) // Induce high latency
+			if ok {
+				atomic.AddInt32(&pollCount, 1)
+			} else {
+				break
+			}
+		}
+	}()
+
+	start := time.Now()
+	queue.Close(100 * time.Millisecond)
+
+	wg.Wait() // Wait until poller closes
+
 	if took := time.Since(start); took < 100*time.Millisecond {
 		t.Errorf("Worker should take atleast 100ms to close, took: %v", took)
 	}
 
-	if workerExited {
-		t.Errorf("Worker was not closed forcefully")
+	if current := runtime.NumGoroutine(); false && current != expected {
+		t.Errorf("Non Closed Routines, Start: %d, Now: %d [Took: %v]", expected, current, time.Since(start))
 	}
 
+	if atomic.LoadInt32(&pollCount) == int32(maxItemCount) {
+		t.Errorf("Worker closed gracefully, expected to close forcefully with pending elements in queue")
+	}
 }

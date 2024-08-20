@@ -2,9 +2,11 @@ package gomq
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestBrokerFanoutPattern(t *testing.T) {
@@ -18,7 +20,7 @@ func TestBrokerFanoutPattern(t *testing.T) {
 }
 
 func testBrokerFanoutPattern(t *testing.T, broker Broker) {
-	defer broker.Close(0)
+	defer broker.Close(-1)
 
 	subscriberCount := 10
 	topicName := "all-events"
@@ -67,7 +69,7 @@ func TestBrokerDataIntegritySingleRoutine(t *testing.T) {
 }
 
 func testBrokerDataIntegritySingleRoutine(t *testing.T, broker Broker) {
-	defer broker.Close(0)
+	defer broker.Close(-1)
 
 	poller := broker.Subscribe(ExactMatcher("all"))
 
@@ -107,7 +109,7 @@ func TestBrokerDataIntegrityMultiRoutine(t *testing.T) {
 }
 
 func testBrokerDataIntegrityMultiRoutine(t *testing.T, broker Broker) {
-	defer broker.Close(0)
+	defer broker.Close(-1)
 
 	poller := broker.Subscribe(ExactMatcher("all"))
 
@@ -230,4 +232,40 @@ func testBrokerDataIntegrityCloseBroker(t *testing.T, broker Broker) {
 	wg.Wait()
 }
 
-// TODO: Add testcase for go routine leaks
+func testRoutineLeaks(t *testing.T, broker Broker) {
+	expected := runtime.NumGoroutine()
+
+	for i := 0; i < 10; i++ {
+		sub := broker.Subscribe(ExactMatcher("all"))
+		go func() {
+			for {
+				if _, ok := sub.Poll(); !ok {
+					break
+				}
+			}
+		}()
+	}
+
+	for val := 0; val < 100; val++ {
+		broker.Publish("all", val)
+	}
+
+	broker.Close(100 * time.Millisecond) // Give some time to close the broker
+
+	time.Sleep(100 * time.Millisecond) // Give some time to golang to cleanup routines
+
+	// The current routines can be less than expected, if broker allots its own go routines.
+	if current := runtime.NumGoroutine(); expected < current {
+		t.Errorf("[%s] Invalid Go Routine Count: Expected: %d Obtained: %d", t.Name(), expected, current)
+	}
+}
+
+func TestRoutineLeaks(t *testing.T) {
+	t.Run("SyncBroker", func(t *testing.T) {
+		testRoutineLeaks(t, NewBroker())
+	})
+
+	t.Run("AsyncBroker", func(t *testing.T) {
+		testRoutineLeaks(t, NewAsyncBroker())
+	})
+}
