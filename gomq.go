@@ -23,6 +23,9 @@ type Broker interface {
 
 	// Publish publishes the `data` to the topic.
 	// It returns the count of matched subscribers to which the `data` has been published.
+	//
+	// For AsnycBroker, it returns the count of matched subscribers during invocation,
+	// this can get increased during actual delivery.
 	Publish(topic string, data interface{}) int
 
 	// Subscribe creates a Poller which polls data
@@ -69,6 +72,8 @@ func (b *broker) Publish(topic string, data interface{}) int {
 	return count
 }
 
+// NewAsyncBroker creates a new async broker for message exchange.
+// This broker pushes the data to its internal queue which get published to subscribers asynchronously.
 func NewAsyncBroker() Broker {
 	b := &asyncBroker{
 		queue: queue.NewQueue(),
