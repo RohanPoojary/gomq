@@ -39,6 +39,37 @@ func Example_basic() {
 	// User{ID:5 Name:}, Ok: true
 }
 
+func Example_withAsyncBroker() {
+	broker := NewAsyncBroker()
+	defer broker.Close(0)
+
+	usersPoller := broker.Subscribe(ExactMatcher("users"))
+
+	type User struct {
+		ID   int
+		Name string
+	}
+
+	go func() {
+		// Publisher Routine.
+		for i := 1; i < 10; i++ {
+			broker.Publish("users", User{ID: i})
+		}
+	}()
+
+	for i := 1; i <= 5; i++ {
+		val, ok := usersPoller.Poll()
+		fmt.Printf("User%+v, Ok: %v\n", val, ok)
+	}
+
+	// Output:
+	// User{ID:1 Name:}, Ok: true
+	// User{ID:2 Name:}, Ok: true
+	// User{ID:3 Name:}, Ok: true
+	// User{ID:4 Name:}, Ok: true
+	// User{ID:5 Name:}, Ok: true
+}
+
 func Example_advanced() {
 	broker := NewBroker()
 	defer broker.Close(0)
@@ -108,6 +139,7 @@ func Example_fanOut() {
 		}()
 	}
 
+	// Ensure all the workers are done.
 	wg.Wait()
 }
 
