@@ -103,10 +103,6 @@ func (b *asyncBroker) Publish(topic string, data interface{}) int {
 
 	minMatchCount := len(b.queueMatchers)
 
-	if minMatchCount == 0 {
-		return 0
-	}
-
 	b.queue.Push(asyncPayload{topic: topic, data: data})
 	return minMatchCount
 }
