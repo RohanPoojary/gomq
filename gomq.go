@@ -111,11 +111,11 @@ func (b *asyncBroker) Publish(topic string, data interface{}) int {
 	return minMatchCount
 }
 
-func (b *asyncBroker) manage() int {
+func (b *asyncBroker) manage() {
 	for {
 		val, ok := b.queue.Poll()
 		if !ok {
-			return 0
+			return
 		}
 
 		payload := val.(asyncPayload)
