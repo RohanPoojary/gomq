@@ -27,18 +27,20 @@ type Queue interface {
 }
 
 type queue struct {
-	in    chan interface{}
-	out   chan interface{}
-	close chan bool
-	once  sync.Once
+	in         chan interface{}
+	out        chan interface{}
+	forceClose chan struct{}
+	done       chan struct{}
+	once       sync.Once
 }
 
 // NewQueue creates a new thread safe queue.
 func NewQueue() Queue {
 	q := queue{
-		in:    make(chan interface{}, 1),
-		out:   make(chan interface{}, 1),
-		close: make(chan bool, 1),
+		in:         make(chan interface{}, 1),
+		out:        make(chan interface{}, 1),
+		forceClose: make(chan struct{}),
+		done:       make(chan struct{}),
 	}
 	go q.manage()
 
@@ -47,12 +49,16 @@ func NewQueue() Queue {
 
 func (q *queue) manage() {
 	queue := []interface{}{}
+
+	// Done to be closed at the last, as it itimidates the queue has been successfully closed.
+	defer close(q.done)
+
 	defer close(q.out)
 
 	for {
 		if len(queue) == 0 {
 			select {
-			case <-q.close:
+			case <-q.forceClose:
 				return
 			case v, ok := <-q.in:
 				// If channel gets closed, then return
@@ -63,7 +69,7 @@ func (q *queue) manage() {
 			}
 		} else {
 			select {
-			case <-q.close:
+			case <-q.forceClose:
 				return
 			case v, ok := <-q.in:
 				if ok {
@@ -86,18 +92,21 @@ func (q *queue) Poll() (interface{}, bool) {
 	return val, ok
 }
 
-func (q *queue) forceClose() {
-	q.close <- true
-	close(q.close)
+func (q *queue) induceForceClose() {
+	close(q.forceClose)
 	<-q.out
+	<-q.done
 }
 
 func (q *queue) Close(timeout time.Duration) {
 	q.once.Do(func() {
 		close(q.in)
 		if timeout >= 0 {
-			time.Sleep(timeout)
-			q.forceClose()
+			select {
+			case <-time.After(timeout):
+				q.induceForceClose()
+			case <-q.done:
+			}
 		}
 	})
 }

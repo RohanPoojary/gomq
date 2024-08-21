@@ -9,9 +9,9 @@ import (
 	"testing"
 )
 
-func benchmarkPublishNConsumer(b *testing.B, n int) {
+func benchmarkPublishNPoller(b *testing.B, creator func() Broker, n int) {
 
-	broker := NewBroker()
+	broker := creator()
 	defer broker.Close(0)
 
 	reg := regexp.MustCompile(`test\.*`)
@@ -34,28 +34,12 @@ func benchmarkPublishNConsumer(b *testing.B, n int) {
 	})
 }
 
-func BenchmarkPublish(b *testing.B) {
-	// BenchmarkPublish/Consumers=1-4         	 1000000	      1178 ns/op
-	// BenchmarkPublish/Consumers=10-4        	  300000	      4504 ns/op
-	// BenchmarkPublish/Consumers=30-4        	  200000	     11523 ns/op
-	// BenchmarkPublish/Consumers=50-4        	  100000	     19384 ns/op
+func benchmarkPollNPublisher(b *testing.B, creator func() Broker, n int) {
 
-	consumerTopicRatios := []int{1, 10, 30, 50}
-
-	for _, consumerCount := range consumerTopicRatios {
-		name := fmt.Sprintf("Consumers=%d", consumerCount)
-		b.Run(name, func(b *testing.B) {
-			benchmarkPublishNConsumer(b, consumerCount)
-		})
-	}
-}
-
-func benchmarkConsumeNPublisher(b *testing.B, n int) {
-
-	broker := NewBroker()
+	broker := creator()
 	defer broker.Close(0)
 
-	stop := make(chan bool, 0)
+	stop := make(chan bool)
 
 	sub := broker.Subscribe(regexp.MustCompile(`test\.*`))
 
@@ -85,71 +69,41 @@ func benchmarkConsumeNPublisher(b *testing.B, n int) {
 	close(stop)
 }
 
-func benchmarkMConsumerNPublisher(b *testing.B, m, n int) {
+func BenchmarkPublish(b *testing.B) {
 
-	broker := NewBroker()
-	defer broker.Close(0)
+	pollerCounts := []int{1, 10, 30, 50}
 
-	stop := make(chan bool, 0)
-	subs := make([]Poller, m)
-	for i := 0; i < m; i++ {
-		subs[i] = broker.Subscribe(regexp.MustCompile(`test\.*`))
+	for _, pollerCount := range pollerCounts {
+		name := fmt.Sprintf("SyncBroker/Pollers=%d", pollerCount)
+		b.Run(name, func(b *testing.B) {
+			benchmarkPublishNPoller(b, NewBroker, pollerCount)
+		})
 	}
 
-	for i := 0; i < n; i++ {
-		i := i
-		go func() {
-			for {
-				select {
-				case <-stop:
-					return
-				default:
-					broker.Publish("test:"+strconv.Itoa(i), rand.Intn(1000))
-				}
-			}
-		}()
+	for _, pollerCount := range pollerCounts {
+		name := fmt.Sprintf("AsyncBroker/Pollers=%d", pollerCount)
+		b.Run(name, func(b *testing.B) {
+			benchmarkPublishNPoller(b, NewAsyncBroker, pollerCount)
+		})
 	}
 
-	b.ResetTimer()
-
-	b.RunParallel(func(pb *testing.PB) {
-		sub := subs[rand.Intn(m)]
-		for pb.Next() {
-			sub.Poll()
-		}
-	})
-
-	stop <- true
-	close(stop)
 }
 
-func BenchmarkConsume(b *testing.B) {
-	// BenchmarkConsume/Publisher=1-4         	 1000000	      1599 ns/op
-	// BenchmarkConsume/Publisher=10-4        	 1000000	      1788 ns/op
-	// BenchmarkConsume/Publisher=30-4        	 1000000	      2182 ns/op
-	// BenchmarkConsume/Publisher=50-4        	 1000000	      2330 ns/op
+func BenchmarkPoll(b *testing.B) {
 
 	publisherCounts := []int{1, 10, 30, 50}
 
 	for _, publisherCount := range publisherCounts {
-		name := fmt.Sprintf("Publisher=%d", publisherCount)
+		name := fmt.Sprintf("SyncBroker/Publisher=%d", publisherCount)
 		b.Run(name, func(b *testing.B) {
-			benchmarkConsumeNPublisher(b, publisherCount)
+			benchmarkPollNPublisher(b, NewBroker, publisherCount)
 		})
 	}
-}
 
-func BenchmarkMultiConsume(b *testing.B) {
-	// BenchmarkMultiConsume/Publisher=50/Consumer=10-4         	 1000000	      1134 ns/op
-	// BenchmarkMultiConsume/Publisher=50/Consumer=30-4         	  500000	      3568 ns/op
-	// BenchmarkMultiConsume/Publisher=50/Consumer=50-4         	  500000	      4416 ns/op
-
-	consumerCounts := []int{10, 30, 50}
-	publisherCount := 50
-	for _, consumerCount := range consumerCounts {
-		name := fmt.Sprintf("Publisher=%d/Consumer=%d", publisherCount, consumerCount)
+	for _, publisherCount := range publisherCounts {
+		name := fmt.Sprintf("AsyncBroker/Publisher=%d", publisherCount)
 		b.Run(name, func(b *testing.B) {
-			benchmarkMConsumerNPublisher(b, consumerCount, publisherCount)
+			benchmarkPollNPublisher(b, NewAsyncBroker, publisherCount)
 		})
 	}
 }

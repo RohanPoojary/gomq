@@ -1,7 +1,6 @@
 package gomq
 
 import (
-	"sync"
 	"time"
 
 	"github.com/RohanPoojary/gomq/queue"
@@ -23,7 +22,11 @@ type Poller interface {
 type Broker interface {
 
 	// Publish publishes the `data` to the topic.
-	Publish(topic string, data interface{})
+	// It returns the count of matched subscribers to which the `data` has been published.
+	//
+	// For AsnycBroker, it returns the count of matched subscribers during invocation,
+	// this can get increased during actual delivery.
+	Publish(topic string, data interface{}) int
 
 	// Subscribe creates a Poller which polls data
 	// from matched topics.
@@ -40,52 +43,106 @@ type Broker interface {
 	Close(timeOut time.Duration)
 }
 
-type queueMatcher struct {
-	queue   queue.Queue
-	matcher Matcher
+// NewBroker creates a new broker for message exchange.
+// A simple broker which synchronously publishes the data to all its matching subscribers.
+func NewBroker() Broker {
+	return &broker{
+		brokerBase: brokerBase{
+			queueMatchers: []queueMatcher{},
+		},
+	}
 }
 
 type broker struct {
-	queueMatchers []queueMatcher
-	sync.RWMutex
+	brokerBase
 }
 
-// NewBroker creates a new broker for message exchange.
-func NewBroker() Broker {
-	return &broker{
-		queueMatchers: []queueMatcher{},
-	}
-}
-
-func (b *broker) Publish(topic string, data interface{}) {
+func (b *broker) Publish(topic string, data interface{}) int {
 	b.RLock()
 	defer b.RUnlock()
 
-	// TODO: Cache the below information.
+	count := 0
 	for _, q := range b.queueMatchers {
 		if q.matcher.MatchString(topic) {
 			q.queue.Push(data)
+			count += 1
 		}
 	}
+
+	return count
 }
 
-func (b *broker) Subscribe(matcher Matcher) Poller {
-
-	b.Lock()
-	defer b.Unlock()
-
-	que := queue.NewQueue()
-	b.queueMatchers = append(b.queueMatchers, queueMatcher{queue: que, matcher: matcher})
-
-	return que
-}
-
-func (b *broker) Close(timeOut time.Duration) {
-	b.Lock()
-	defer b.Unlock()
-	for _, qm := range b.queueMatchers {
-		qm.queue.Close(timeOut)
+// NewAsyncBroker creates a new async broker for message exchange.
+// This broker pushes the data to its internal queue which get published to subscribers asynchronously.
+func NewAsyncBroker() Broker {
+	b := &asyncBroker{
+		queue: queue.NewQueue(),
+		brokerBase: brokerBase{
+			queueMatchers: []queueMatcher{},
+		},
 	}
 
-	b.queueMatchers = []queueMatcher{}
+	go b.manage()
+
+	return b
+}
+
+type asyncBroker struct {
+	brokerBase
+	queue queue.Queue
+}
+
+type asyncPayload struct {
+	topic string
+	data  interface{}
+}
+
+func (b *asyncBroker) Publish(topic string, data interface{}) int {
+	b.RLock()
+	defer b.RUnlock()
+
+	minMatchCount := len(b.queueMatchers)
+
+	if minMatchCount == 0 {
+		return 0
+	}
+
+	b.queue.Push(asyncPayload{topic: topic, data: data})
+	return minMatchCount
+}
+
+func (b *asyncBroker) manage() {
+	for {
+		val, ok := b.queue.Poll()
+		if !ok {
+			return
+		}
+
+		payload := val.(asyncPayload)
+		b.publish(payload.topic, payload.data)
+	}
+}
+
+func (b *asyncBroker) publish(topic string, data interface{}) int {
+	b.RLock()
+	defer b.RUnlock()
+
+	count := 0
+	for _, q := range b.queueMatchers {
+		if q.matcher.MatchString(topic) {
+			q.queue.Push(data)
+			count += 1
+		}
+	}
+
+	return count
+}
+
+func (b *asyncBroker) Close(timeOut time.Duration) {
+
+	b.Lock()
+	defer b.Unlock()
+
+	b.queue.Close(timeOut)
+	b.brokerBase.unsafeClose(timeOut)
 }
