@@ -25,7 +25,7 @@ jobs:
         run: go build .
 
       - name: Test with the Go CLI
-        run: go test -coverprofile=c.out ./...
+        run: go test -v -covermode=count -coverprofile=coverage.out
       
       - name: Coveralls
         uses: coverallsapp/github-action@v2
