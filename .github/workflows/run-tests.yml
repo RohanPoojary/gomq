@@ -1,4 +1,4 @@
-name: Test Cases
+name: Run test cases
 
 on: [push, pull_request]
 
@@ -27,5 +27,5 @@ jobs:
       - name: Build Check
         run: go build .
 
-      - name: Test with the Go CLI
-        run: go test -v ./...
+      - name: Runing testcases 10 times
+        run: go test -count=10 -v ./...
